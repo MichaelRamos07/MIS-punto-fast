@@ -5,20 +5,33 @@
 
 #define MAX_PRODUCTOS 100
 #define MAX_CARRITO 50
-
-// Prototipos de funciones
+#define MAX_USUARIOS 10
 
 
 int ivaGlobal = 12;
 int numeroDia = 1;
 int facturaActual = 1;
 int cantidadProductos;
-int limiteStock = 5;
+int limiteStock = 0;
+
+typedef struct {
+    int id;
+    char nombre[50];
+    char usuario[20];
+    char password[20];
+    int nivel;
+} Usuario;
+
+Usuario usuarios[MAX_USUARIOS];
+int cantidadUsuarios = 0;
+Usuario usuarioIdentificado;
 
 typedef struct {
     int facturaID;
-    char fecha[11]; 
-    char hora[9];   
+    char cedulacliente[11];
+    char fecha[11];
+    char hora[9];
+    char usuario[50];
     int dia;
     int codigo;
     char nombre[30];
@@ -37,7 +50,7 @@ typedef struct {
     float ingresoTotal;
 } ResumenProducto;
 
-typedef struct { //estructura de productos
+typedef struct {
     int codigo;
     char nombre[30];
     int stock;
@@ -47,7 +60,7 @@ typedef struct { //estructura de productos
 Producto productos[MAX_PRODUCTOS];
 
 
-int cajaAbierta = 0;   
+int cajaAbierta = 0;
 
 
 
@@ -63,6 +76,19 @@ void buscarProductosPorCodigo();
 void convertirMayusculas(char *str);
 void cargarConfig();
 void eliminarProducto();
+void cargarUsuarios();
+
+char cadena [100];
+int validacionEntero (char input[]){
+    for (int i = 0; input[i] != '\0'; i++) {
+        if (!isdigit(input[i])) {
+            printf("Error: La opcion '%s' no es un valor válido.\n", input);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 void obtenerFechaHora(char *fecha, char *hora) {
     time_t t = time(NULL);
     struct tm *tm_info = localtime(&t);
@@ -88,7 +114,7 @@ void cargarProductos() {
 
         if (!token) {
             continue;
-        }    
+        }
         p.codigo = atoi(token);
 
         token = strtok(NULL, ",");
@@ -107,7 +133,7 @@ void cargarProductos() {
     fclose(f);
 }
 
- void guardarProductos() {
+void guardarProductos() {
     FILE *f = fopen("productos.csv", "w");
     if (f == NULL) {
         printf("Error al guardar productos\n");
@@ -128,7 +154,7 @@ void cargarProductos() {
     fclose(f);
 }
 
-void guardarFactura(ItemCarrito carrito[], int items, float ivaTotal, float total) {
+void guardarFactura(ItemCarrito carrito[], int items, float ivaTotal, float total, char cedulacliente[11], char usuario[50]) {
 
     cargarConfig();
 
@@ -159,10 +185,12 @@ void guardarFactura(ItemCarrito carrito[], int items, float ivaTotal, float tota
         float subtotalProducto = carrito[i].cantidad * carrito[i].precioUnitario;
 
         fprintf(f,
-            "%d,%s,%s,%d,%d,%s,%d,%.2f,%.2f,%.2f,%.2f\n",
+            "%d,%s,%s,%s,%s,%d,%d,%s,%d,%.2f,%.2f,%.2f,%.2f\n",
             facturaActual,
+            cedulacliente,
             fecha,
             hora,
+            usuario,
             numeroDia,
             carrito[i].codigo,
             productos[idx].nombre,
@@ -194,10 +222,12 @@ void bajoStock() {
     printf("El stock de todos los productos es: \n");
     for(int i = 0; i < cantidadProductos; i++){
             printf("El stock de %s es: %d\n", productos[i].nombre, productos[i].stock);
-    }        
+    }
 }
 
 void venderCarrito() {
+    FacturaDetalle fd;
+    Usuario u = usuarioIdentificado;
 
     if (!cajaAbierta) {
         printf("ERROR: Debe abrir la caja antes de vender.\n");
@@ -207,51 +237,76 @@ void venderCarrito() {
     ItemCarrito carrito[MAX_CARRITO];
     int items = 0;
     int seguir = 1;
+    do{
+        printf("Ingrese la cedula del cliente: ");
+        scanf("%s", fd.cedulacliente);
+        if(strlen(fd.cedulacliente) != 10){
+            printf("ERROR: La cedula debe tener exactamente 10 caracteres.\n");
+        }
+    }while(strlen(fd.cedulacliente) != 10);
 
-    while (seguir == 1 && items < MAX_CARRITO) {
+    do{
 
-        int codigo, cantidad;
-        printf("\nIngrese el código del producto: ");
-        scanf("%d", &codigo);
+        if(seguir == 1){
+            int codigo;
+            int cantidad;
+            printf("\nIngrese el código del producto: ");
+            scanf("%d", &codigo);
 
-        // Buscar producto
-        int idx = -1;
-        for (int i = 0; i < cantidadProductos; i++) {
-            if (productos[i].codigo == codigo) {
-                idx = i;
+            int idx = -1;
+            for (int i = 0; i < cantidadProductos; i++) {
+                if (productos[i].codigo == codigo) {
+                    idx = i;
+                    break;
+                }
+            }
+
+            if (idx == -1) {
+                printf("Producto no encontrado.\n");
+                continue;
+            }
+
+            printf("Ingrese cantidad a comprar de %s: ", productos[idx].nombre);
+            scanf("%d", &cantidad);
+
+            if (cantidad > productos[idx].stock) {
+                printf("Stock insuficiente. Disponible: %d\n", productos[idx].stock);
+                continue;
+            }
+
+            carrito[items].codigo = codigo;
+            carrito[items].cantidad = cantidad;
+            carrito[items].precioUnitario = productos[idx].precio;
+            productos[idx].stock -= cantidad ;
+            items++;
+
+            printf("¿Agregar otro producto? (1=Sí / 0=No): ");
+            scanf("%d", &seguir);
+        }
+        else{
+            if(seguir == 0){
                 break;
             }
+            else{
+                printf("Ingrese una opcion valida\n");
+                printf("¿Agregar otro producto? (1=Sí / 0=No): ");
+                scanf("%d", &seguir);
+            }
         }
-
-        if (idx == -1) {
-            printf("Producto no encontrado.\n");
-            continue;
-        }
-
-        printf("Ingrese cantidad a comprar de %s: ", productos[idx].nombre);
-        scanf("%d", &cantidad);
-
-        if (cantidad > productos[idx].stock) {
-            printf("Stock insuficiente. Disponible: %d\n", productos[idx].stock);
-            continue;
-        }
-
-        carrito[items].codigo = codigo;
-        carrito[items].cantidad = cantidad;
-        carrito[items].precioUnitario = productos[idx].precio;
-        productos[idx].stock -= cantidad ;
-        items++;
-
-        printf("¿Agregar otro producto? (1=Sí / 0=No): ");
-        scanf("%d", &seguir);
-    }
-
-    // -----------------------------
-    //     FACTURA FINAL
-    // -----------------------------
+    }while(seguir != 0);
+    
+    char fecha[11];
+    char hora[9];
+    obtenerFechaHora(fecha, hora);
     float subtotal = 0, ivaTotal = 0;
 
+    printf("\nPUNTO DE VENTA -TIENDA SARITA-\n");
     printf("\n\n=========== FACTURA ===========\n");
+    printf("Fecha: %s\n", fecha);
+    printf("Hora: %s\n", hora);
+    printf("Factura ID: %d\n", facturaActual);
+    printf("Nombre de vendedor: %s\n", u.nombre);
+    printf("Cedula o RUC del cliente: %s\n", fd.cedulacliente);
 
     for (int i = 0; i < items; i++) {
 
@@ -270,15 +325,15 @@ void venderCarrito() {
         ivaTotal += iva;
 
         printf("%s  x%d   $%.2f  = > Subtotal: %.2f\n",
-               productos[idx].nombre,
-               carrito[i].cantidad,
-               carrito[i].precioUnitario,
-               sub
+            productos[idx].nombre,
+            carrito[i].cantidad,
+            carrito[i].precioUnitario,
+            sub
         );
     }
 
     float total = subtotal + ivaTotal;
-    guardarFactura(carrito, items, ivaTotal, total);
+    guardarFactura(carrito, items, ivaTotal, total, fd.cedulacliente, u.nombre);
     guardarProductos();
 
 
@@ -294,7 +349,7 @@ void venderCarrito() {
     for(int i = 0; i < cantidadProductos; i++){
         if(productos[i].stock <= limiteStock){
             printf("ALERTA: Bajo stock de %s (%d unidades)\n",
-                   productos[i].nombre, productos[i].stock);
+                productos[i].nombre, productos[i].stock);
         }
     }
 }
@@ -305,23 +360,25 @@ void mostrarFacturaPorID(int id) {
         printf("No hay facturas registradas.\n");
         return;
     }
-
+    FacturaDetalle fd;
     char linea[300];
     fgets(linea, sizeof(linea), f);
     float subtotalTotal = 0;
     float ivaTotal = 0;
     float totalTotal = 0;
     int validador = 0;
-    printf("\n=== FACTURA #%d ===\n", id);
-
+    char fecha[11];
+    char hora[9];
+    char vendedor[30];
+    char cedula[11];
     while (fgets(linea, sizeof(linea), f)) {
-
-        FacturaDetalle fd;
         char *token = strtok(linea, ",");
 
         fd.facturaID = atoi(token);
+        token = strtok(NULL, ","); strcpy(fd.cedulacliente, token);
         token = strtok(NULL, ","); strcpy(fd.fecha, token);
         token = strtok(NULL, ","); strcpy(fd.hora, token);
+        token = strtok(NULL, ","); strcpy(fd.usuario, token);
         token = strtok(NULL, ","); fd.dia = atoi(token);
         token = strtok(NULL, ","); fd.codigo = atoi(token);
         token = strtok(NULL, ","); strcpy(fd.nombre, token);
@@ -332,13 +389,19 @@ void mostrarFacturaPorID(int id) {
         token = strtok(NULL, ","); fd.totalFactura = atof(token);
 
         if (fd.facturaID == id) {
+            
             printf("%s  x%d  $%.2f  Subtotal: $%.2f\n",
-                   fd.nombre, fd.cantidad, fd.precioUnitario, fd.subtotal);
+                fd.nombre, fd.cantidad, fd.precioUnitario, fd.subtotal);
 
             subtotalTotal += fd.subtotal;
             ivaTotal = fd.iva;
             totalTotal = fd.totalFactura;
             validador = 1;
+
+            strcpy(fecha, fd.fecha);
+            strcpy(hora, fd.hora);
+            strcpy(vendedor, fd.usuario);
+            strcpy(cedula, fd.cedulacliente);
         }
         else{
             continue;
@@ -350,10 +413,15 @@ void mostrarFacturaPorID(int id) {
         fclose(f);
         return;
     }
-
+    obtenerFechaHora(fecha, hora);
     printf("\nSubtotal: %.2f\n", subtotalTotal);
     printf("IVA: %.2f %% \n", ivaTotal);
     printf("TOTAL: %.2f\n", totalTotal);
+
+    printf("Cedula del cliente: %s\n", cedula);
+    printf("Fecha: %s\n", fecha);
+    printf("Hora: %s\n", hora);
+    printf("Vendedor: %s\n", vendedor);
 
     fclose(f);
 }
@@ -381,7 +449,6 @@ void reportePorDia(int diaBuscado) {
 
         char *token = strtok(linea, ",");
         
-  
         token = strtok(NULL, ","); 
         strcpy(fecha, token);
 
@@ -452,9 +519,9 @@ void reportePorDia(int diaBuscado) {
 
     for (int i = 0; i < cantidadResumen; i++) {
         printf("%-20s %-15d $%.2f\n",
-               resumen[i].nombre,
-               resumen[i].cantidadTotal,
-               resumen[i].ingresoTotal);
+            resumen[i].nombre,
+            resumen[i].cantidadTotal,
+            resumen[i].ingresoTotal);
 
         totalDia += resumen[i].ingresoTotal;
     }
@@ -508,7 +575,7 @@ void eliminarProducto() {
     printf("Productos actuales:\n");
     for (int i = 0; i < cantidadProductos; i++) {
         printf("  Cód: %d - %s (Stock: %d)\n", 
-               productos[i].codigo, productos[i].nombre, productos[i].stock);
+            productos[i].codigo, productos[i].nombre, productos[i].stock);
     }
     
     printf("\nIngrese código del producto a eliminar: ");
@@ -591,10 +658,10 @@ void mostrarProductos() {
     
     for (int i = 0; i < cantidadProductos; i++) {
         printf("%-8d %-20s %-8d $%-7.2f\n",
-               productos[i].codigo,
-               productos[i].nombre,
-               productos[i].stock,
-               productos[i].precio);
+            productos[i].codigo,
+            productos[i].nombre,
+            productos[i].stock,
+            productos[i].precio);
     }
     printf("==============================================\n");
     printf("Total de productos: %d\n", cantidadProductos);
@@ -723,7 +790,7 @@ void cargarConfig() {
 
     char linea[100];
 
-    fgets(linea, sizeof(linea), f); 
+    fgets(linea, sizeof(linea), f);
     fgets(linea, sizeof(linea), f);
 
     char *token = strtok(linea, ",");
@@ -931,300 +998,358 @@ void ordenarPorNombre() {
         }
     }while(1);
 }
+int realizarLogin() {
+    char userIntento[20], passIntento[20];
+    printf("--- SISTEMA POS SARITA: LOGIN ---\n");
+    int inicio;
+    int validacion = -1;
+    cargarUsuarios();
+    do{
+    printf("Ingrese 1 para iniciar sesión o 0 para salir: ");
+        scanf("%d", &inicio);
+        if(inicio == 1){
+            printf("Usuario: ");
+            scanf("%s", userIntento);
+            printf("Contraseña: ");
+            scanf("%s", passIntento);
+
+            for (int i = 0; i < cantidadUsuarios; i++) {
+
+                if (strcmp(userIntento, usuarios[i].usuario) == 0 &&
+                    strcmp(passIntento, usuarios[i].password) == 0) {
+                    
+                    usuarioIdentificado = usuarios[i];
+                    printf("\nBienvenido/a, %s!\n", usuarios[i].nombre);
+                    return usuarios[i].nivel;
+                    validacion = 0;
+                }else{
+                    continue;
+                }
+            }
+        }else{
+            if(inicio == 0){
+                printf("Saliendo del sistema. ¡Hasta luego!\n");
+                return 0;
+            }
+            printf("Opción no válida.\n");
+            continue;
+        }
+        if(validacion == -1){
+            printf("Usuario o contraseña incorrectas\n");
+        }
+    }while(inicio != 0);
+
+    return 0;
+}
+
+void cargarUsuarios() {
+    FILE *f = fopen("usuarios.csv", "r");
+    if (f == NULL) return;
+
+    char linea[200];
+    fgets(linea, sizeof(linea), f); // Saltar encabezado
+
+    cantidadUsuarios = 0; // Reiniciar contador antes de cargar
+    while (fgets(linea, sizeof(linea), f)) {
+        Usuario u;
+        char *token = strtok(linea, ",");
+        if (token == NULL) continue; // Saltar líneas vacías
+
+        u.id = atoi(token);
+        
+        token = strtok(NULL, ",");
+        if (token) strcpy(u.nombre, token);
+        
+        token = strtok(NULL, ",");
+        if (token) strcpy(u.usuario, token);
+        
+        token = strtok(NULL, ",");
+        if (token) strcpy(u.password, token);
+        
+        token = strtok(NULL, ",");
+        if (token) u.nivel = atoi(token);
+
+        usuarios[cantidadUsuarios++] = u;
+    }
+    fclose(f);
+}
+void agregarVendedor(Usuario u) {
+    FILE *f = fopen("usuarios.csv", "a");
+    if (f == NULL) {
+        printf("Error al guardar vendedor\n");
+        return;
+    }
+    u.id = cantidadUsuarios > 0 ? usuarios[cantidadUsuarios - 1].id + 1 : 1;
+    printf("Ingrese el nombre del nuevo vendedor: ");
+    fgets(u.nombre, sizeof(u.nombre), stdin);
+    u.nombre[strcspn(u.nombre, "\n")] = '\0';
+
+    printf("Ingrese el nombre de usuario: ");
+    fgets(u.usuario, sizeof(u.usuario), stdin);
+    u.usuario[strcspn(u.usuario, "\n")] = '\0';
+
+    printf("Ingrese la contraseña: ");
+    fgets(u.password, sizeof(u.password), stdin);
+    u.password[strcspn(u.password, "\n")] = '\0';
+
+    printf("Ingrese el nivel de acceso (1=Admin, 2=Vendedor): ");
+    scanf("%d", &u.nivel);
+
+
+    fprintf(f, "%d,%s,%s,%s,%d\n", u.id, u.nombre, u.usuario, u.password, u.nivel);
+    cantidadUsuarios++;
+    fclose(f);
+}
 
 int main() {
     SetConsoleOutputCP(65001);
     cargarConfig();
     cargarProductos();
     int opc, opci, rol;
-    char opcion[3];
-    char cingresada[12];
-    char ci[11] = "1724665730";
-    char admincontrasena[15];
-    char adminpassword[15]="MDRO.2007";
-    char usuariopassword[50]="PUNTOFAST.001";
-    char usuariocontrasena[50];
     do{
-        printf("\n-----LOGIN-----\n");
-        printf("1.Administrador\n");
-        printf("2.Vendedor\n");
-        printf("3.Salir\n");
-        printf("Seleccione una opcion: ");
-        fgets(opcion, sizeof(opcion), stdin);
-        rol = atoi(opcion);
-
+        
+        rol = realizarLogin();
         if(rol == 1 ){
+
             do{
-                printf("\n-----ADMINISTRADOR-----\n");
-                printf("Ingrese su cedula y contraseña\n");
-                printf("Ingrese 0 en CI si desea cambiar de usuario\n");
-                printf("CI: ");
-                fgets(cingresada, sizeof(cingresada), stdin);
-                cingresada[strcspn(cingresada, "\n")] = '\0';
-                if (atoi(cingresada) == 0)
-                {
+                printf("\n-------BIENVENIDO AL PUNTO DE VENTA PUNTOFAST-------\n");
+                printf("ADMINISTRADOR: %s\n", usuarioIdentificado.nombre);
+                printf("\n1. Catálogo de productos") ;
+                printf("\n2. Inventario") ;
+                printf("\n3. Reporte") ;
+                printf("\n4. Agregar vendedor") ;
+                printf("\n5. Cerrar sesión") ;
+                printf("\nIngrese la opción a la que desea acceder:") ;
+                scanf("%d", &opc) ;
+                eliminarSalto();
+                switch (opc) {
+                    case 1:
+                        do {
+                            printf("\n---------Ha ingrsado al catalogo de productos-------") ;
+                            printf("\n----PRODUCTOS----") ;
+                            printf("\n1. Registar productos");
+                            printf("\n2. Eliminar productos");
+                            printf("\n3. Definir precios");
+                            printf("\n4. Definir porcentaje de iva");
+                            printf("\n5. Mostrar Productos");
+                            printf("\n6. Buscar productos por codigo");
+                            printf("\n7. Buscar productos por nombre");
+                            printf("\n8. Regresar") ;
+                            printf("\nIngrese la opcion a la que desea ingresar:") ;
+                            scanf("%d", &opci) ;
+                            eliminarSalto();
+                            switch (opci) {
+                                case 1:
+                                    crearProducto();
+                                    break;
+                                case 2:
+                                    eliminarProducto();
+                                    break;
+                                case 3:
+                                    redefinirPrecio();
+                                    break;
+                                case 4:
+                                    cambiarIVA();
+                                    break;
+                                case 5:
+                                    mostrarProductos();
+                                    break;
+                                case 6:
+                                    buscarProductosPorCodigo();
+                                    break;
+                                case 7:
+                                    buscarProductosPorNombre();
+                                    break;
+                                default :
+                                    if(opci != 8)
+                                        printf("Opcion no valida, intente de nuevo\n");
+                                    break;
+                            }
+                        } while (opci != 8) ;
+                        break;
+                    case 2:
+                        do {
+                            printf("\n-------INVENTARIO-------");
+                            printf("\n1. Aumentar o disminuir stock");
+                            printf("\n2. Mostrar stock de productos");
+                            printf("\n3. Cambiar bajo stock");
+                            printf("\n4. Ordenar productos por codigo(menor a myaor)");
+                            printf("\n5. Ordenar productos por nombre(A-Z)");
+                            printf("\n6. Regresar") ;
+                            printf("\nIngrese la opcion a la que desea ingresar:") ;
+                            scanf("%d", &opci) ;
+                            eliminarSalto();
+                            switch (opci) {
+                                case 1:
+                                    cambiarStock() ;
+                                    break;
+                                case 2:
+                                    mostrarStock();
+                                    break;
+                                case 3:
+                                    cambiarBajoStock();
+                                    break;
+                                case 4:
+                                    ordenarPorCodigo();
+                                    break;
+                                case 5:
+                                    ordenarPorNombre();
+                                    break;
+                                default:
+                                    if (opci !=6 ) {
+                                        printf("Opcion no valida, intente de nuevo\n");
+                                    }
+                                    break;
+                                }
+                        } while (opci != 6 ) ;
+                        break;
+                    case 3 :
+                        do{
+                            printf("\n---------Reportes---------\n") ;
+                            printf("1. Cantidad de ventas\n");
+                            printf("2. Bajo stock\n") ;
+                            printf("3. Mostrar factura por ID\n");
+                            printf("4. Regresar\n") ;
+                            printf("Elija lo opcion que desea: ");
+                            scanf("%d", &opci);
+                            if (opci == 1) {
+                                printf("\nDías disponibles:\n");
+                                for (int d = 1; d <= numeroDia; d++) {
+                                    printf("%d. Día %d\n", d, d);
+                                }
+
+                                int diaElegido;
+                                printf("Ingrese el día que desea ver: ");
+                                scanf("%d", &diaElegido);
+
+                                reportePorDia(diaElegido);
+                                }
+                            else if (opci == 2){
+                                bajoStock();
+                            
+                            }else if(opci == 3){
+                                int id;
+                                printf("Ingrese el ID de la factura: ");
+                                scanf("%d", &id);
+                                mostrarFacturaPorID(id);
+                            }else if (opci == 4){
+                                break;
+                            }
+                            else{
+                                printf("Opcion no valida, intente de nuevo\n");
+                            }
+                        }while (opci != 4);
+                    break;
+                    case 4:
+                        agregarVendedor(usuarioIdentificado);
+                        break;
+                    default:
+                        if (opc != 5){
+                            printf("Opcion no valida, intente de nuevo\n");
+                        }
                     break;
                 }
-                printf("CONTRASEÑA: ");
-                fgets(admincontrasena, sizeof(admincontrasena), stdin);
-                admincontrasena[strcspn(admincontrasena, "\n")] = '\0';
-                if(strcmp(cingresada,ci) == 0 && strcmp(admincontrasena, adminpassword) == 0){
-                    printf("INGRESO CORRECTO A ADMINISTRADOR");
-                    
-                    do{
-                        printf("\n-------BIENVENIDO AL PUNTO DE VENTA PUNTOFAST-------");
-                        printf("\n1. Catálogo de productos") ;
-                        printf("\n2. Inventario") ;
-                        printf("\n3. Reporte") ;
-                        printf("\n4. Cerrar sesión") ;
-                        printf("\nIngrese la opción a la que desea acceder:") ;
-                        scanf("%d", &opc) ;
-                        eliminarSalto();
-                        switch (opc) {
-                            case 1:
-                                do {
-                                    printf("\n---------Ha ingrsado al catalogo de productos-------") ;
-                                    printf("\n----PRODUCTOS----") ;
-                                    printf("\n1. Registar productos");
-                                    printf("\n2. Eliminar productos");         
-                                    printf("\n3. Definir precios");
-                                    printf("\n4. Definir porcentaje de iva");
-                                    printf("\n5. Mostrar Productos");
-                                    printf("\n6. Buscar productos por codigo");
-                                    printf("\n7. Buscar productos por nombre");
-                                    printf("\n8. Regresar") ;
-                                    printf("\nIngrese la opcion a la que desea ingresar:") ;
-                                    scanf("%d", &opci) ;
-                                    eliminarSalto();
-                                    switch (opci) {
-                                        case 1:
-                                            crearProducto();
-                                            break;
-                                        case 2:
-                                            eliminarProducto();
-                                            break;    
-                                        case 3:
-                                            redefinirPrecio();
-                                            break;
-                                        case 4:
-                                            cambiarIVA();
-                                            break;
-                                        case 5:
-                                            mostrarProductos();
-                                            break;
-                                        case 6:
-                                            buscarProductosPorCodigo();
-                                            break;
-                                        case 7:
-                                            buscarProductosPorNombre();
-                                            break;
-                                        default :
-                                            if(opci != 8)
-                                                printf("Opcion no valida, intente de nuevo\n");
-                                            break;     
-                                    }
-                                } while (opci != 8) ;
-                                break;
-                            case 2:
-                                do {
-                                    printf("\n-------INVENTARIO-------");
-                                    printf("\n1. Aumentar o disminuir stock");
-                                    printf("\n2. Mostrar stock de productos");
-                                    printf("\n3. Cambiar bajo stock");
-                                    printf("\n4. Ordenar productos por codigo(menor a myaor)");
-                                    printf("\n5. Ordenar productos por nombre(A-Z)");
-                                    printf("\n6. Regresar") ;
-                                    printf("\nIngrese la opcion a la que desea ingresar:") ;
-                                    scanf("%d", &opci) ;
-                                    eliminarSalto();
-                                    switch (opci) {
-                                        case 1:
-                                            cambiarStock() ;
-                                            break;
-                                        case 2:
-                                            mostrarStock();
-                                            break;
-                                        case 3:
-                                            cambiarBajoStock();
-                                            break;
-                                        case 4:
-                                            ordenarPorCodigo();
-                                            break;
-                                        case 5: 
-                                            ordenarPorNombre();
-                                            break;    
-                                        default:
-                                            if (opci !=6 ) {    
-                                                printf("Opcion no valida, intente de nuevo\n");
-                                                break;
-                                            }    
-                                        }
-                                } while (opci != 6 ) ;        
-                                break;       
-
-                            case 3 :
-                            do{
-                                printf("\n---------Reportes---------\n") ;
-                                printf("1. Cantidad de ventas\n");
-                                printf("2. Bajo stock\n") ;
-                                printf("3. Mostrar factura por ID\n");
-                                printf("4. Regresar\n") ;
-                                printf("Elija lo opcion que desea: ");
-                                scanf("%d", &opci);
-                                if (opci == 1) {
-                                    printf("\nDías disponibles:\n");
-                                    for (int d = 1; d < numeroDia; d++) {
-                                        printf("%d. Día %d\n", d, d);
-                                    }
-
-                                    int diaElegido;
-                                    printf("Ingrese el día que desea ver: ");
-                                    scanf("%d", &diaElegido);
-
-                                    reportePorDia(diaElegido);
-                                    }
-                                else if (opci == 2){
-                                    bajoStock();
-                                
-                                }else if(opci == 3){
-                                    int id;
-                                    printf("Ingrese el ID de la factura: ");
-                                    scanf("%d", &id);
-                                    mostrarFacturaPorID(id);
-                                }
-                            }while(opci != 4) ; 
-
-                                break;
-                            default:
-                                if (opc != 4){    
-                                    printf("Opcion no valida, intente de nuevo\n");
-                                    break;
-                                }    
-
-                        }
-
-                    }while (opc != 4);
-
-                }else{
-                    printf("\nCedula o contraseña incorrecta\nIntente de nuevo\n");
-                }
-            }while(1);    
+            }while(opc!=5);
 
         }else if(rol == 2){
-            do{
-                printf("\n----VENDEDOR----\n");
-                printf("Ingrese 0 en contraseña si desea cambiar de usuario\n");
-                printf("CONTRASEÑA: ");
-                fgets(usuariocontrasena, sizeof(usuariocontrasena), stdin);
-                usuariocontrasena[strcspn(usuariocontrasena, "\n")] = '\0';
-                
-                if(strcmp(usuariocontrasena, "0") == 0){
-                    break;
-                }   
-                if(strcmp(usuariocontrasena,usuariopassword) == 0){
-                    printf("INGRESO CORRECTO A VENDEDOR\n");
-                    
-                    do{
-                        printf("\n-------BIENVENIDO AL PUNTO DE VENTA PUNTOFAST-------");
-                        printf("\n1. Catálogo de productos") ;
-                        printf("\n2. Ventas") ;
-                        printf("\n3. Caja") ;
-                        printf("\n4. Cerrar sesion") ;
-                        printf("\nIngrese la opción a la que desea acceder:") ;
-                        scanf("%d", &opc) ;
-                        eliminarSalto();
-                        switch (opc) {
-                            case 1:
-                                do {
-                                    printf("\n---------Ha ingrsado al catalogo de productos-------") ;
-                                    printf("\n----PRODUCTOS----") ;
-                                    printf("\n1. Buscar productos por codigo");
-                                    printf("\n2. Buscar productos por nombre");
-                                    printf("\n3. Mostrar Productos");
-                                    printf("\n4. Regresar") ;
-                                    printf("\nIngrese la opcion a la que desea ingresar:") ;
-                                    scanf("%d", &opci) ;
-                                    eliminarSalto();
-                                    switch (opci) {
-                                        case 1:
-                                            buscarProductosPorCodigo();
-                                            break;
-                                        case 2:
-                                            buscarProductosPorNombre();
-                                            break;                                        
-                                        case 3:
-                                            mostrarProductos();
-                                            break;
-                                        default:
-                                            if(opci != 4)
-                                                printf("Opcion no valida, intente de nuevo\n");
-                                            break;     
-                                    }
-                                } while (opci != 4) ;
-                                break;
-                                    
-                            case 2:
-                                do {
-                                    printf("1. Gestionar ventas\n");
-                                    printf("2. Regresar\n");
-                                    printf("Ingrese la opcion: ");
-                                    scanf("%d", &opci);
-
-                                    if (opci == 1){
-                                        venderCarrito();
-
-                                    }else if (opci == 2){
+                do{
+                    printf("\n-------BIENVENIDO AL PUNTO DE VENTA PUNTOFAST-------\n");
+                    printf("VENDEDOR: %s\n", usuarioIdentificado.nombre);
+                    printf("\n1. Catálogo de productos") ;
+                    printf("\n2. Ventas") ;
+                    printf("\n3. Caja") ;
+                    printf("\n4. Cerrar sesion") ;
+                    printf("\nIngrese la opción a la que desea acceder:") ;
+                    scanf("%d", &opc) ;
+                    eliminarSalto();
+                    switch (opc) {
+                        case 1:
+                            do {
+                                printf("\n---------Ha ingrsado al catalogo de productos-------") ;
+                                printf("\n----PRODUCTOS----") ;
+                                printf("\n1. Buscar productos por codigo");
+                                printf("\n2. Buscar productos por nombre");
+                                printf("\n3. Mostrar Productos");
+                                printf("\n4. Regresar") ;
+                                printf("\nIngrese la opcion a la que desea ingresar:") ;
+                                scanf("%d", &opci) ;
+                                eliminarSalto();
+                                switch (opci) {
+                                    case 1:
+                                        buscarProductosPorCodigo();
                                         break;
-                                        
-                                    }else printf("Error ingrese una opcion valida\n");    
-                                    
-                                } while (opci != 2);
+                                    case 2:
+                                        buscarProductosPorNombre();
+                                        break;
+                                    case 3:
+                                        mostrarProductos();
+                                        break;
+                                    default:
+                                        if(opci != 4)
+                                            printf("Opcion no valida, intente de nuevo\n");
+                                        break;     
+                                }
+                            } while (opci != 4) ;
+                            break;
+                                
+                        case 2:
+                            do {
+                                printf("1. Gestionar ventas\n");
+                                printf("2. Regresar\n");
+                                printf("Ingrese la opcion: ");
+                                scanf("%d", &opci);
 
-                                break;
-                                    
-                            case 3:
-                                do{
-                                    printf("\n-------CAJA-------");
-                                    printf("\n1. Abrir caja");
-                                    printf("\n2. Cerrar caja");
-                                    printf("\n3. Regresar") ;
-                                    printf("\nOpción: ");
-                                    scanf("%d", &opci);
-                                    
-                                    if (opci == 1) {
-                                        abrirCaja();
-                                    }
-                                    else if (opci == 2) {
-                                        cerrarCaja();
-                                    }    
-                                    else {
-                                        if (opci != 3)
-                                        {
-                                            printf("Opcion no valida\n");
-                                        }
-                                        
-                                    }
-                                    break;
-                                } while(opci != 3) ;   
-                                break;
+                                if (opci == 1){
+                                    venderCarrito();
 
-                            
-                            default:
-                                if (opc != 4){    
-                                    printf("Opcion no valida, intente de nuevo\n");
+                                }else if (opci == 2){
                                     break;
+                                    
+                                }else printf("Error ingrese una opcion valida\n");
+                                
+                            } while (opci != 2);
+
+                            break;
+                                
+                        case 3:
+                            do{
+                                printf("\n-------CAJA-------");
+                                printf("\n1. Abrir caja");
+                                printf("\n2. Cerrar caja");
+                                printf("\n3. Regresar") ;
+                                printf("\nOpción: ");
+                                scanf("%d", &opci);
+                                
+                                if (opci == 1) {
+                                    abrirCaja();
+                                }
+                                else if (opci == 2) {
+                                    cerrarCaja();
                                 }    
+                                else {
+                                    if (opci != 3)
+                                    {
+                                        printf("Opcion no valida\n");
+                                    }
+                                    
+                                }
+                                break;
+                            } while(opci != 3) ;   
+                            break;
 
-                        }
+                        
+                        default:
+                            if (opc != 4){    
+                                printf("Opcion no valida, intente de nuevo\n");
+                                break;
+                            }    
 
-                    }while (opc != 4);
+                    }
 
-                }else{
-                    printf("\nContraseña incorrecta\nIntente de nuevo\n");
-                }
-            }while(1);    
+                }while (opc != 4);
+
         }else{
-            if(rol == 3){
+            if(rol == 0){
                 continue;
             }
             else{
@@ -1233,6 +1358,5 @@ int main() {
         }
 
         
-    }while(rol != 3);
-    
+    }while(rol != 0);
 }
