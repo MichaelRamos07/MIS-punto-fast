@@ -1074,12 +1074,22 @@ void cargarUsuarios() {
     fclose(f);
 }
 void agregarVendedor(Usuario u) {
+    cargarUsuarios();
     FILE *f = fopen("usuarios.csv", "a");
     if (f == NULL) {
         printf("Error al guardar vendedor\n");
         return;
     }
-    u.id = cantidadUsuarios > 0 ? usuarios[cantidadUsuarios - 1].id + 1 : 1;
+
+    if (cantidadUsuarios == 0) {
+        nuevo.id = 2026500;
+    } else {
+        
+        nuevo.id = usuarios[cantidadUsuarios - 1].id + 1;
+    }
+
+    printf("Asignando ID automatico: %d\n", nuevo.id);
+
     printf("Ingrese el nombre del nuevo vendedor: ");
     fgets(u.nombre, sizeof(u.nombre), stdin);
     u.nombre[strcspn(u.nombre, "\n")] = '\0';
@@ -1287,7 +1297,7 @@ int main() {
                                     default:
                                         if(opci != 4)
                                             printf("Opcion no valida, intente de nuevo\n");
-                                        break;     
+                                        break;
                                 }
                             } while (opci != 4) ;
                             break;
