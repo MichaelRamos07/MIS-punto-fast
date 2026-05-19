@@ -1,21 +1,23 @@
-PuntoFast - Sistema de Punto de Venta
+# PuntoFast - Sistema de Punto de Venta
+
 ---------------------------------------------
 Descripción del Proyecto
 
-PuntoFast es un sistema de punto de venta desarrollado en lenguaje C para la gestión de inventario, ventas y reportes de un establecimiento comercial. 
+PuntoFast es un sistema de punto de venta desarrollado en lenguaje C para la gestión de inventario, ventas y reportes de un establecimiento comercial.
 El sistema cuenta con diferentes niveles de acceso (administrador y vendedor) y funcionalidades robustas para la gestión de productos, facturación e inventario.
 
 Características Principales:
 
+## 🔐 Sistema de Autenticación
 
-🔐 Sistema de Autenticación
----------------------------------------------------------------------------
+---------------------------------------------
 Administrador: Acceso completo a todas las funcionalidades del sistema
 
 Vendedor: Funciones limitadas a ventas y consulta de productos
 
-📦 Gestión de Productos
-------------------------------------------------------------------
+## 📦 Gestión de Productos
+
+---------------------------------------------
 Crear, eliminar y modificar productos
 
 Asignar códigos automáticamente
@@ -26,8 +28,10 @@ Búsqueda por código o nombre
 
 Ordenamiento por código o nombre
 
-💰 Módulo de Ventas
--------------------------------------------------------------------------------------------------
+## 💰 Módulo de Ventas
+
+---------------------------------------------
+
 Proceso de venta con múltiples productos
 
 Cálculo automático de IVA configurable
@@ -39,7 +43,9 @@ Gestión de carrito de compras
 Control de stock en tiempo real
 
 📊 Inventario y Reportes
-----------------------------------------------------------------------------------------------------
+
+---------------------------------------------
+
 Control de stock con alertas de bajo inventario
 
 Reportes de ventas por día
@@ -48,8 +54,10 @@ Consulta de facturas por ID
 
 Configuración de límite de stock mínimo
 
-💼 Gestión de Caja
---------------------------------------------------------------------------------------------
+## 💼 Gestión de Caja
+
+---------------------------------------------
+
 Apertura y cierre de caja diario
 
 Numeración automática de días
@@ -64,14 +72,16 @@ text
 
 puntofast.c
 
-productos.csv           
+productos.csv
 
-facturas.csv            
+facturas.csv
 
-config.csv              
+config.csv
 
-ESTRUCTURA DE DATOS 👾
---------------------------------------------------------------
+## ESTRUCTURA DE DATOS 👾
+
+---------------------------------------------
+
 Producto: código, nombre, stock, precio
 
 FacturaDetalle: información completa de ventas
@@ -80,10 +90,10 @@ ItemCarrito: productos en proceso de venta
 
 ResumenProducto: datos para reportes
 
-Requisitos del Sistema ⚙️
------------------------------------------------------------------------
+## Requisitos del Sistema ⚙️
 
-Software:  
+---------------------------------------------
+Software:
 Compilador C (GCC, MinGW, etc.)
 
 Sistema operativo Windows
@@ -91,34 +101,39 @@ Sistema operativo Windows
 Terminal con soporte UTF-8
 
 Librerías Utilizadas de C 📚
-------------------------------------------------------------------------
-#include <stdio.h>
 
-#include <windows.h>
+---------------------------------------------
+`` C
+    # include <stdio.h>
 
-#include <time.h>
+    # include <windows.h>
 
-#include <string.h>
+    # include <time.h>
+
+    # include <string.h>
 
 DATOS PARA EL USO 🔐
---------------------------------------------
+
+---------------------------------------------
+
 Credenciales de Acceso
 
-**Administrador**
+**Administrador*
 
 Cédula: 1724665730
 
 Contraseña: MDRO.2007
 
-
-**Vendedor**
+**Vendedor*
 
 Contraseña: PUNTOFAST.001
 
 > Funcionalidades por Rol
 
-👨‍💼 Administrador
----
+## 👨‍💼 Administrador
+
+---------------------------------------------
+
 Catálogo completo de productos
 
 Gestión de inventario
@@ -129,8 +144,10 @@ Configuración del sistema
 
 Cambio de IVA y límites de stock
 
-👨‍💼 Vendedor
----
+## 👨‍💼 Vendedor
+
+---------------------------------------------
+
 Consulta de productos
 
 Proceso de ventas
@@ -139,16 +156,20 @@ Apertura/cierre de caja
 
 No puede modificar precios ni stock
 
-FUNCIONES 🪄
------------------------------------------------
+## FUNCIONES 🪄
+
+---------------------------------------------
+
 eliminarProducto(): Elimina productos del sistema
 
 redefinirPrecio(): Modifica precios
 
 mostrarProductos(): Lista todos los productos
 
-Ventas 🛒
---------------------------------------------
+## Ventas 🛒
+
+---------------------------------------------
+
 venderCarrito(): Proceso completo de venta
 
 guardarFactura(): Almacena datos de venta
@@ -165,7 +186,9 @@ ordenarPorCodigo(): Ordena productos
 ordenarPorNombre(): Ordena alfabéticamente
 
 Funciones de parametros
--------------------------------------------------
+
+---------------------------------------------
+
 cambiarIVA(): Modifica porcentaje de IVA
 
 cambiarBajoStock(): Define límite de stock mínimo
@@ -174,8 +197,10 @@ abrirCaja(): Inicia jornada comercial
 
 cerrarCaja(): Finaliza día de ventas
 
-Consideraciones Técnicas ✨
---------
+## Consideraciones Técnicas ✨
+
+---------------------------------------------
+
 Persistencia de Datos
 
 Todos los datos se guardan en archivos CSV
@@ -194,8 +219,8 @@ Validación de credenciales
 
 Rango de valores para IVA (0-30%)
 
-Interfaz de Usuario 📺
---------------------------------------
+## Interfaz de Usuario 📺
+
 Menús jerárquicos organizados
 
 Mensajes de error descriptivos
@@ -203,18 +228,22 @@ Mensajes de error descriptivos
 Formato de salida claro y legible
 
 Limitaciones Conocidas
------------------------------------------------------------
+
+---------------------------------------------
+
 Capacidad máxima: 100 productos y 50 ítems por carrito
 
 Requiere reinicio para aplicar algunos cambios de configuración
 
 Solo funciona en sistemas Windows por el uso de windows.h
 
+## LICENCIA
 
-LICENCIA
---------------
+---------------------------------------------
+
 Este proyecto NO TIENE LICENCIA actualmente
 
 AUTORES ©️👥
------------------
+
+---------------------------------------------
 Jefferson Garcia, Michael Ramos estudiantes de primer semestre de INGENIERIA EN CIENCIA DE DATOS E IA de la Escuela Politecnica Nacional
